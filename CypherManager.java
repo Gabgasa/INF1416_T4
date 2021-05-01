@@ -1,13 +1,14 @@
 import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.spec.EncodedKeySpec;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Base64;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -62,6 +63,42 @@ public class CypherManager {
         }
         
         return symmetricalKey;
+
+    }
+
+    public Key getPrivateKey(byte[] secretPhrase) throws IOException{
+        Key privateKey = null;
+        File pkFile = new File(pathToPrivateKey);
+        String pk64 = null;
+        
+        byte[] pkDES = Files.readAllBytes(pkFile.toPath());
+
+        Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
+        try {
+            SecureRandom sc = SecureRandom.getInstance("SHA1PRNG");
+            sc.setSeed(secretPhrase);
+            KeyGenerator keyGen = KeyGenerator.getInstance("DES");
+            keyGen.init(sc);
+            keyGen.init(56);
+            cipher.init(Cipher.DECRYPT_MODE, keyGen.generateKey());
+            pk64 = cipher.doFinal(pkDES);//private key in base64
+
+            String pkPEM = pk64
+                .replace("-----BEGIN PRIVATE KEY-----", "")
+                .replaceAll(Systen.lineSeparator(), "")
+                .replace("-----END PRIVATE KEY-----", "");
+
+            pkBytes = Base64.decodeBase64(pkPEM);
+
+            PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(pkBytes);
+            KeyFactory kf = new KeyFactory();
+            privateKey = kf.generatePrivate(keyspec);
+                                    
+        } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
+            e.printStackTrace();
+        }
+
+        return privateKey;
 
     }
 }

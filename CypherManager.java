@@ -2,11 +2,11 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
-import java.security.spec.EncodedKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
@@ -55,8 +55,7 @@ public class CypherManager {
             SecureRandom sc = SecureRandom.getInstance("SHA1PRNG");
             sc.setSeed(seed);
             KeyGenerator keyGen = KeyGenerator.getInstance("DES");
-            keyGen.init(sc);
-            keyGen.init(56);
+            keyGen.init(56, sc);
             symmetricalKey = keyGen.generateKey();
             
         } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
@@ -70,7 +69,7 @@ public class CypherManager {
     public Key getPrivateKey(byte[] secretPhrase) throws IOException{
         Key privateKey = null;
         File pkFile = new File(pathToPrivateKey);
-        byte[] pkBytes;
+        byte[] encoded;
         String pk64 = null;
         
         byte[] pkDES = Files.readAllBytes(pkFile.toPath());
@@ -78,21 +77,23 @@ public class CypherManager {
         try {
             Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
             SecureRandom sc = SecureRandom.getInstance("SHA1PRNG");
-            sc.setSeed(secretPhrase);
             KeyGenerator keyGen = KeyGenerator.getInstance("DES");
-            keyGen.init(sc);
-            keyGen.init(56);
-            cipher.init(Cipher.DECRYPT_MODE, keyGen.generateKey());
-            pk64 = cipher.doFinal(pkDES).toString();//private key in base64
-
+            sc.setSeed(secretPhrase);            
+            keyGen.init(56, sc);
+            Key key = keyGen.generateKey();
+            cipher.init(Cipher.DECRYPT_MODE, key);
+            
+            //pk64 = cipher.doFinal(pkDES).toString();//private key in base64
+            encoded = cipher.doFinal(pkDES);//private key in base64
+            pk64 = new String(encoded, StandardCharsets.UTF_8);
             String pkPEM = pk64
                 .replace("-----BEGIN PRIVATE KEY-----", "")
-                .replaceAll(System.lineSeparator(), "")
+                .replaceAll("\n", "")
                 .replace("-----END PRIVATE KEY-----", "");
+  
+            encoded = Base64.getDecoder().decode(pkPEM);
 
-            pkBytes = Base64.getDecoder().decode(pkPEM);
-
-            PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(pkBytes);
+            PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(encoded);
             KeyFactory kf = KeyFactory.getInstance("RSA");
             privateKey = kf.generatePrivate(keyspec);
                                     
@@ -109,4 +110,31 @@ public class CypherManager {
         return privateKey;
 
     }
+
+    //test
+    public static void main (String[] args){
+        
+        String userCertPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/user01-x509.crt";
+        String userPrivateKeyPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/user01-pkcs8-des.key";
+        String indexEnv = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.env";
+        CypherManager cp = new CypherManager(userCertPath, userPrivateKeyPath);
+
+        try {
+            Key publickey = cp.getPublicKey();
+            System.out.println(publickey);
+
+            Key privateKey = cp.getPrivateKey("user01".getBytes("UTF8"));
+            System.out.println(privateKey);
+
+            Key symmetricalKey = cp.getSymmetricKey(indexEnv, privateKey);
+            System.out.println(symmetricalKey);
+        } catch (CertificateException | IOException e) {
+            e.printStackTrace();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        } catch (NoSuchPaddingException e) {
+            e.printStackTrace();
+        }
+    }
 }
+

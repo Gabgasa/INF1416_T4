@@ -111,28 +111,87 @@ public class CypherManager {
 
     }
 
+    public byte[] decryptFile(byte[] file, Key key) throws Exception{
+        byte[] res;
+        Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
+        cipher.init(Cipher.DECRYPT_MODE, key);
+
+        res = cipher.doFinal(file);
+
+        return res;
+    }
+
+    public Boolean validateFile(byte[] file, byte[] signature, Key key) throws Exception{
+                //
+            // verifica a assinatura com a chave publica
+            //System.out.println( "\nStart signature verification" );
+            Signature sig = Signature.getInstance("SHA1WithRSA");
+            sig.initVerify((PublicKey)key);
+            sig.update(file);
+            try {
+                if (sig.verify(signature)) {
+                    System.out.println( "Signature verified" );
+                    return true;
+                } else {
+                    System.out.println( "Signature failed" ); 
+                    return false;
+                }
+            } catch (SignatureException se) {
+            System.out.println( "Singature failed" );
+            return false;
+            }
+        
+
+    }
+
+    private String byteToHex(byte[] data){
+        // converte o digist para hexadecimal
+        StringBuffer buf = new StringBuffer();
+        for(int i = 0; i < data.length; i++) {
+            String hex = Integer.toHexString(0x0100 + (data[i] & 0x00FF)).substring(1);
+            buf.append((hex.length() < 2 ? "0" : "") + hex);
+        }
+
+        return buf.toString();
+    }  
+
     //test
     public static void main (String[] args){
         
         String userCertPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/user01-x509.crt";
         String userPrivateKeyPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/user01-pkcs8-des.key";
         String indexEnv = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.env";
+        String indexEnc = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.enc";
+        String indexAsd = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.asd";
+
         CypherManager cp = new CypherManager(userCertPath, userPrivateKeyPath);
 
         try {
             Key publickey = cp.getPublicKey();
-            System.out.println(publickey);
+            //System.out.println(publickey);
 
             Key privateKey = cp.getPrivateKey("user01".getBytes("UTF8"));
-            System.out.println(privateKey);
+            //System.out.println(privateKey);
 
             Key symmetricalKey = cp.getSymmetricKey(indexEnv, privateKey);
-            System.out.println(symmetricalKey);
+            //System.out.println(symmetricalKey);
+            File ind = new File(indexEnc);
+            byte[] indFile = Files.readAllBytes(ind.toPath());
+            byte[] index = cp.decryptFile(indFile, symmetricalKey);
+
+            //System.out.println(new String(index, StandardCharsets.UTF_8));
+            File indexSig = new File(indexAsd);
+            byte[] sig = Files.readAllBytes(indexSig.toPath());
+
+            cp.validateFile(index, sig, publickey);
+            
         } catch (CertificateException | IOException e) {
             e.printStackTrace();
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         } catch (NoSuchPaddingException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

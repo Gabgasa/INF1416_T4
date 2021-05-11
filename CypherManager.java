@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
@@ -17,31 +18,27 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
 
-import java.security.cert.Certificate;
 
 public class CypherManager {
-    String pathToCertificate, pathToPrivateKey;
 
-    CypherManager(String pathToCertificate, String pathToPrivateKey){
-        this.pathToCertificate = pathToCertificate;
-        this.pathToPrivateKey = pathToPrivateKey;        
+    CypherManager(){ 
     }
 
-    public Key getPublicKey() throws CertificateException, IOException{
-        Certificate cert = null;
+    public X509Certificate getCertificate(String pathToCertificate) throws Exception{
+        X509Certificate cert = null;
 
         FileInputStream fis = new FileInputStream(pathToCertificate);
         BufferedInputStream bis = new BufferedInputStream(fis);
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
 
         while(bis.available() > 0){
-            cert = cf.generateCertificate(bis);
+            cert = (X509Certificate) cf.generateCertificate(bis);
         }
 
-        return cert.getPublicKey();
+        return cert;
     }
 
-    public Key getSymmetricKey(String pathToDigitalEnv, Key privateKey) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException{
+    public Key getSymmetricKey(String pathToDigitalEnv, Key privateKey) throws Exception{
         byte[] env;
         File digitalEnv = new File(pathToDigitalEnv);
         Key symmetricalKey = null;
@@ -49,24 +46,24 @@ public class CypherManager {
         env = Files.readAllBytes(digitalEnv.toPath());
 
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-        try {
-            cipher.init(Cipher.DECRYPT_MODE, privateKey);
-            byte[] seed = cipher.doFinal(env);
-            SecureRandom sc = SecureRandom.getInstance("SHA1PRNG");
-            sc.setSeed(seed);
-            KeyGenerator keyGen = KeyGenerator.getInstance("DES");
-            keyGen.init(56, sc);
-            symmetricalKey = keyGen.generateKey();
+        
+        cipher.init(Cipher.DECRYPT_MODE, privateKey);
+        byte[] seed = cipher.doFinal(env);
+        SecureRandom sc = SecureRandom.getInstance("SHA1PRNG");
+        sc.setSeed(seed);
+        KeyGenerator keyGen = KeyGenerator.getInstance("DES");
+        keyGen.init(56, sc);
+        symmetricalKey = keyGen.generateKey();
             
-        } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
-            e.printStackTrace();
-        }
+       
+           
+        
         
         return symmetricalKey;
 
     }
 
-    public Key getPrivateKey(byte[] secretPhrase) throws IOException{
+    public Key getPrivateKey(String pathToPrivateKey, byte[] secretPhrase) throws Exception{
         Key privateKey = null;
         File pkFile = new File(pathToPrivateKey);
         byte[] encoded;
@@ -74,41 +71,32 @@ public class CypherManager {
         
         byte[] pkDES = Files.readAllBytes(pkFile.toPath());
 
-        try {
-            Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
-            SecureRandom sc = SecureRandom.getInstance("SHA1PRNG");
-            KeyGenerator keyGen = KeyGenerator.getInstance("DES");
-            sc.setSeed(secretPhrase);            
-            keyGen.init(56, sc);
-            Key key = keyGen.generateKey();
-            cipher.init(Cipher.DECRYPT_MODE, key);
-            
-            //pk64 = cipher.doFinal(pkDES).toString();//private key in base64
-            encoded = cipher.doFinal(pkDES);//private key in base64
-            pk64 = new String(encoded, StandardCharsets.UTF_8);
-            String pkPEM = pk64
-                .replace("-----BEGIN PRIVATE KEY-----", "")
-                .replaceAll("\n", "")
-                .replace("-----END PRIVATE KEY-----", "");
-  
-            encoded = Base64.getDecoder().decode(pkPEM);
+        
+        Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
+        SecureRandom sc = SecureRandom.getInstance("SHA1PRNG");
+        KeyGenerator keyGen = KeyGenerator.getInstance("DES");
+        sc.setSeed(secretPhrase);            
+        keyGen.init(56, sc);
+        Key key = keyGen.generateKey();
+        cipher.init(Cipher.DECRYPT_MODE, key);
+        
+        //pk64 = cipher.doFinal(pkDES).toString();//private key in base64
+        encoded = cipher.doFinal(pkDES);//private key in base64
+        pk64 = new String(encoded, StandardCharsets.UTF_8);
+        String pkPEM = pk64
+            .replace("-----BEGIN PRIVATE KEY-----", "")
+            .replaceAll("\n", "")
+            .replace("-----END PRIVATE KEY-----", "");
 
-            PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(encoded);
-            KeyFactory kf = KeyFactory.getInstance("RSA");
-            privateKey = kf.generatePrivate(keyspec);
-                                    
-        } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
-            e.printStackTrace();
-        } catch (InvalidKeySpecException e) {
-            e.printStackTrace();
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        } catch (NoSuchPaddingException e) {
-            e.printStackTrace();
-        }
+        encoded = Base64.getDecoder().decode(pkPEM);
+
+        PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(encoded);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        privateKey = kf.generatePrivate(keyspec);
+                                
+        
 
         return privateKey;
-
     }
 
     public byte[] decryptFile(byte[] file, Key key) throws Exception{
@@ -144,7 +132,7 @@ public class CypherManager {
 
     }
 
-    private String byteToHex(byte[] data){
+    public String byteToHex(byte[] data){
         // converte o digist para hexadecimal
         StringBuffer buf = new StringBuffer();
         for(int i = 0; i < data.length; i++) {
@@ -156,44 +144,44 @@ public class CypherManager {
     }  
 
     //test
-    public static void main (String[] args){
+    // public static void main (String[] args){
         
-        String userCertPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/user01-x509.crt";
-        String userPrivateKeyPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/user01-pkcs8-des.key";
-        String indexEnv = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.env";
-        String indexEnc = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.enc";
-        String indexAsd = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.asd";
+    //     String userCertPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/user01-x509.crt";
+    //     String userPrivateKeyPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/user01-pkcs8-des.key";
+    //     String indexEnv = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.env";
+    //     String indexEnc = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.enc";
+    //     String indexAsd = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.asd";
 
-        CypherManager cp = new CypherManager(userCertPath, userPrivateKeyPath);
+    //     CypherManager cp = new CypherManager(userCertPath, userPrivateKeyPath);
 
-        try {
-            Key publickey = cp.getPublicKey();
-            //System.out.println(publickey);
+    //     try {
+    //         Key publickey = cp.getPublicKey();
+    //         //System.out.println(publickey);
 
-            Key privateKey = cp.getPrivateKey("user01".getBytes("UTF8"));
-            //System.out.println(privateKey);
+    //         Key privateKey = cp.getPrivateKey("user01".getBytes("UTF8"));
+    //         //System.out.println(privateKey);
 
-            Key symmetricalKey = cp.getSymmetricKey(indexEnv, privateKey);
-            //System.out.println(symmetricalKey);
-            File ind = new File(indexEnc);
-            byte[] indFile = Files.readAllBytes(ind.toPath());
-            byte[] index = cp.decryptFile(indFile, symmetricalKey);
+    //         Key symmetricalKey = cp.getSymmetricKey(indexEnv, privateKey);
+    //         //System.out.println(symmetricalKey);
+    //         File ind = new File(indexEnc);
+    //         byte[] indFile = Files.readAllBytes(ind.toPath());
+    //         byte[] index = cp.decryptFile(indFile, symmetricalKey);
 
-            //System.out.println(new String(index, StandardCharsets.UTF_8));
-            File indexSig = new File(indexAsd);
-            byte[] sig = Files.readAllBytes(indexSig.toPath());
+    //         //System.out.println(new String(index, StandardCharsets.UTF_8));
+    //         File indexSig = new File(indexAsd);
+    //         byte[] sig = Files.readAllBytes(indexSig.toPath());
 
-            cp.validateFile(index, sig, publickey);
+    //         cp.validateFile(index, sig, publickey);
             
-        } catch (CertificateException | IOException e) {
-            e.printStackTrace();
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        } catch (NoSuchPaddingException e) {
-            e.printStackTrace();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+    //     } catch (CertificateException | IOException e) {
+    //         e.printStackTrace();
+    //     } catch (NoSuchAlgorithmException e) {
+    //         e.printStackTrace();
+    //     } catch (NoSuchPaddingException e) {
+    //         e.printStackTrace();
+    //     } catch (Exception e) {
+    //         e.printStackTrace();
+    //     }
+    // }
 }
 

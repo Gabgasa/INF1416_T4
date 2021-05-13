@@ -12,6 +12,8 @@ import java.util.Random;
 import java.util.Scanner;
 import java.util.Vector;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
 
@@ -57,6 +59,7 @@ class DigitalVault {
             }
             
             if(db.checkIfUserBlocked(this.login)){
+                //FAZER LOG DE TENTATIVA DE LOGIN
                 System.out.println("\nUsuario '" + this.login + "' bloqueado");
                 isValidated = false; 
             }
@@ -65,9 +68,10 @@ class DigitalVault {
         //FAZER LOG QUE DEU CERTO
         this.login = login;
         this.cert = db.getDigitalCert(login);
+        this.publicKey = cert.getPublicKey();
         this.hash = db.getPasswordHex(login);
         this.salt = db.getPasswordSalt(login);
-        this.secondStep();
+        secondStep();
         //FAZER LOG QUE SAIU DA FASE 1
     }
 
@@ -91,6 +95,7 @@ class DigitalVault {
                 if(keypress == 7){
                     j = -1;
                     f.reset();
+                    System.out.println("\nTeclado foi limpo");
                 }
                 //OK
                 else if(keypress == 8){
@@ -102,9 +107,13 @@ class DigitalVault {
                 else{
                     j-=1;
                     System.out.println("\nNao eh um botao valido");
-                }            
+                }
+                System.out.println("\nSenha:");
+                for(int k = 0; k <= j; k++){
+                    System.out.print("## ");
+                }  
+                System.out.println();          
             }
-
             Vector<String> passwordCombinations = f.combinations();
             for(String password : passwordCombinations){
                 password = password.replace("-", "") + this.salt;
@@ -113,24 +122,78 @@ class DigitalVault {
                 byte[] digest = messageDigest.digest();
 
                 if(cm.byteToHex(digest).equals(passwordHex)){
-                    //VALIDADO CORRETAMENTE
-                    System.out.println("AUTENTICADO STEP 2");
-                    System.exit(1);
+                    //FAZER LOG VALIDADO CORRETAMENTE
+                    System.out.println("\nAUTENTICADO STEP 2");
+                    thirdStep();
+                    db.increaseFailAttemptsCount(this.login, -1); //Resetando o contador de erros
+                    return;
                 }
             }
 
-            //SENHA INVALIDA
+            //FAZER LOG SENHA INVALIDA
             System.out.println("\nSenha invalida.");
             f.reset();
             db.increaseFailAttemptsCount(this.login, block);
             block =  db.getFailAttemptsCount(this.login);
-            System.out.println(block);
             if(block >= 3){
+                //FAZER LOG DE BLOQUEIO USUARIO
                 db.blockUser(this.login);
             }
         }
         System.out.println("\nLogin " + this.login + " por numero de tentativas invalidas. Aguarde dois minutos");
         firstStep();
+    }
+
+    public void thirdStep() throws Exception{
+        String secretPhrase;
+        String privateKeyPath;
+        Key privKey;
+        boolean isValidated = false;
+        int block = db.getFailAttemptsCount(this.login);
+        CypherManager cm = new CypherManager();
+
+        byte[] randomByteArray = new byte[2048];
+        SecureRandom.getInstanceStrong().nextBytes(randomByteArray); //Gera um array aleatorio de 2048 bytes que sera assinado com a Private Key
+
+        while(!isValidated){
+            System.out.println("\nAnexe sua chave privada.");
+            privateKeyPath = this.scanner.next();
+            System.out.println("\nDigite sua frase secreta.");
+            secretPhrase = this.scanner.next();
+
+            //Recovering private key
+           try{
+            privKey = cm.getPrivateKey(privateKeyPath, secretPhrase.getBytes());
+            Signature sig = Signature.getInstance("SHA1WithRSA");
+            sig.initSign((PrivateKey)privKey);
+            sig.update(randomByteArray);
+            byte[] signature = sig.sign();
+            isValidated = cm.validateFile(randomByteArray, signature, this.publicKey);
+            this.privateKey = privKey;
+           } 
+           catch(BadPaddingException e){
+                //FAZER LOG FRASE SECRETA INVALIDA
+                //db.increaseFailAttemptsCount(this.login, block);
+                System.out.println("\nFrase secreta invalida");
+                continue;
+           } 
+           catch(IOException | NullPointerException | OutOfMemoryError | SecurityException | IllegalBlockSizeException e){
+                //FAZER LOG CAMINHO INVALIDO
+                //db.increaseFailAttemptsCount(this.login, block);
+                System.out.println("\nCaminho da chave privada invalido");
+                continue;
+           }
+                    
+            if(!isValidated){
+                //FAZER LOG DA ASSINATURA DIGITAL INVALIDA
+                //db.increaseFailAttemptsCount(this.login, block);
+                System.out.println("\nChave privada invalida, tente novamente");
+            } 
+            block = db.getFailAttemptsCount(this.login);   
+        }
+        //FAZER LOG CHAVE PRIVADA VALIDADA
+        System.out.println("\nChave validada");
+        return;
     }
     //END INTERFACE METHODS ---------------
 
@@ -170,6 +233,8 @@ class DigitalVault {
 
     //javac DigitalVault.java DatabaseManager.java CypherManager.java Fonemas.java Tree.java Node.java
     //java -cp ".;sqlite-jdbc-3.23.1.jar" DigitalVault  
+
+    //C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/admin-pkcs8-des.key
     public static void main (String[] args){
         String adminCertPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/admin-x509.crt";
         String userCertPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/user01-x509.crt";

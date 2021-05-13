@@ -104,7 +104,6 @@ public class DatabaseManager {
             lastblocked = rs.getDate("LASTBLOCKED");
         }
 
-        System.out.println(lastblocked);
         if(lastblocked != null){//Nunca foi bloqueado
             difference = now.getTime() - lastblocked.getTime();
             

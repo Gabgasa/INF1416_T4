@@ -54,13 +54,12 @@ public class Fonemas {
 		fonemas.add(new String("HE"));
 		fonemas.add(new String("HO"));
 		
-		Collections.shuffle(fonemas);
-		
 		return fonemas;		
 	}
 	
 	public Vector<String> generateCodes(Vector<String> fonemas)
 	{
+		Collections.shuffle(fonemas);
 		Vector<String> codes = new Vector<String>();
 
 		for(int i = 0; i < fonemas.size(); i+=3)	

@@ -136,7 +136,27 @@ public class CypherManager {
         }
 
         return buf.toString();
-    }  
+    }
+    
+    public String getDecryptedFile(String pathToFileEnv, String pathToFileEnc, Key privKey, String fileSigPath, Key pubKey) throws Exception{
+        String file = "";
+        Key symmetricalKey = this.getSymmetricKey(pathToFileEnv, privKey);
+        
+        File ind = new File(pathToFileEnc);
+        byte[] encryptedFile = Files.readAllBytes(ind.toPath());
+        byte[] fileBytes = this.decryptFile(encryptedFile, symmetricalKey);
+
+        //System.out.println(new String(index, StandardCharsets.UTF_8));
+        File fileSig = new File(fileSigPath);
+        byte[] sig = Files.readAllBytes(fileSig.toPath());
+
+        file = new String(fileBytes, StandardCharsets.UTF_8);
+
+        if(this.validateFile(fileBytes, sig, pubKey)){
+            return file;
+        }
+        return null;
+    }
 
     //test
     // public static void main (String[] args){
@@ -147,13 +167,13 @@ public class CypherManager {
     //     String indexEnc = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.enc";
     //     String indexAsd = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.asd";
 
-    //     CypherManager cp = new CypherManager(userCertPath, userPrivateKeyPath);
+    //     CypherManager cp = new CypherManager();
 
     //     try {
-    //         Key publickey = cp.getPublicKey();
+    //         X509Certificate cert = cp.getCertificate(userCertPath);
     //         //System.out.println(publickey);
 
-    //         Key privateKey = cp.getPrivateKey("user01".getBytes("UTF8"));
+    //         Key privateKey = cp.getPrivateKey(userPrivateKeyPath, "user01".getBytes("UTF8"));
     //         //System.out.println(privateKey);
 
     //         Key symmetricalKey = cp.getSymmetricKey(indexEnv, privateKey);
@@ -166,7 +186,9 @@ public class CypherManager {
     //         File indexSig = new File(indexAsd);
     //         byte[] sig = Files.readAllBytes(indexSig.toPath());
 
-    //         cp.validateFile(index, sig, publickey);
+    //         System.out.println(new String(index, StandardCharsets.UTF_8));
+
+    //         cp.validateFile(index, sig, cert.getPublicKey());
             
     //     } catch (CertificateException | IOException e) {
     //         e.printStackTrace();

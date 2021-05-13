@@ -87,7 +87,29 @@ public class DatabaseManager {
         stmt.close();
         return false;
     }
-    //TO DO
+
+    public String getUserGroup(String login) throws Exception{
+        String group = "";
+
+        //System.out.println("Connection succesful");
+
+        c.setAutoCommit(false);
+
+        String sql = "SELECT * FROM GRUPOS INNER JOIN USUARIOS ON GRUPOS.GID = USUARIOS.GID AND USUARIOS.LOGIN=?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setString(1, login);
+        ResultSet rs = stmt.executeQuery();
+        
+        if(rs.next()){
+            group = rs.getString("GROUPNAME");
+        }
+        
+        rs.close();
+        stmt.close();
+
+        return group;
+    }
+
     public boolean checkIfUserBlocked(String login) throws Exception{
         c.setAutoCommit(false);
         Date aux = new Date();
@@ -121,7 +143,6 @@ public class DatabaseManager {
         java.sql.Date now = new java.sql.Date(aux.getTime());
 
         c.setAutoCommit(false);
-
         String sql = "UPDATE USUARIOS set BLOCKCOUNT = 0, LASTBLOCKED = ? WHERE LOGIN = ?";
         PreparedStatement stmt = c.prepareStatement(sql);
         stmt.setDate(1, now);
@@ -138,13 +159,13 @@ public class DatabaseManager {
 
     public void removeUser(String login) throws Exception{          
         // System.out.println("Connection succesful");
-
+        c.setAutoCommit(false);
         String sql = "DELETE FROM USUARIOS WHERE LOGIN=?";
         PreparedStatement stmt = c.prepareStatement(sql);
         stmt.setString(1, login);
-        
         c.commit();
-        stmt.executeUpdate(sql);
+        stmt.executeUpdate();
+        
         stmt.close();    
     }
     
@@ -152,6 +173,7 @@ public class DatabaseManager {
     public void insertNewUser(String login, String name, String cert, String algorithm, String salt, String hexPassword, String gid, String accesscount, String searchcount, String blockcount) throws Exception{
              
         // System.out.println("Connection succesful");
+        c.setAutoCommit(false);
         String sql = "INSERT INTO USUARIOS (LOGIN,NAME,CERT,ALGORITHM,SALT,PASSWORD, GID, ACCESSCOUNT, SEARCHCOUNT, BLOCKCOUNT)" +
                         "VALUES (?,?,?,?,?,?,?,?,?,?)";
         PreparedStatement stmt = c.prepareStatement(sql);
@@ -165,11 +187,9 @@ public class DatabaseManager {
         stmt.setInt(8, Integer.parseInt(accesscount));
         stmt.setInt(9, Integer.parseInt(searchcount));
         stmt.setInt(10, Integer.parseInt(blockcount));
-        // String sql = "INSERT INTO USUARIOS (LOGIN,NAME,CERT,ALGORITHM,SALT,PASSWORD, GID, ACCESSCOUNT, SEARCHCOUNT, BLOCKCOUNT)" +
-        //             "VALUES ('" + login + "', '" + name + "', '" + cert + "', '" + algorithm + "', '" + salt + "', '" + hexPassword +  "', '" + gid  +
-        //             "', '" + accesscount + "', '" + searchcount + "', '" + blockcount + "');";
+
+        stmt.executeUpdate();
         c.commit();
-        stmt.executeUpdate(sql);
         stmt.close();
     }
 
@@ -206,9 +226,7 @@ public class DatabaseManager {
         stmt.setInt(1, block);
         stmt.setString(2, login);
         
-        //Statement stmt = c.createStatement();
-        // String sql = "UPDATE USUARIOS set BLOCKCOUNT = " + Integer.toString(block) + " WHERE LOGIN = "  +  "'" + login + "';";
-        //BLOQUEAR USUARIO AQUI
+
         stmt.executeUpdate();
         c.commit();
         

@@ -40,7 +40,6 @@ class DigitalVault {
     }
 
     //BEGIN INTERFACE METHODS -----------------
-
     public void firstStep() throws Exception{
         //FAZER LOG QUE ENTROU FASE 1
         boolean isValidated = false;
@@ -173,27 +172,51 @@ class DigitalVault {
            } 
            catch(BadPaddingException e){
                 //FAZER LOG FRASE SECRETA INVALIDA
-                //db.increaseFailAttemptsCount(this.login, block);
+                db.increaseFailAttemptsCount(this.login, block);
                 System.out.println("\nFrase secreta invalida");
+                block = db.getFailAttemptsCount(this.login);
+                if(block >= 3){
+                    db.blockUser(this.login);
+                    firstStep();
+                }   
                 continue;
            } 
            catch(IOException | NullPointerException | OutOfMemoryError | SecurityException | IllegalBlockSizeException e){
                 //FAZER LOG CAMINHO INVALIDO
-                //db.increaseFailAttemptsCount(this.login, block);
+                db.increaseFailAttemptsCount(this.login, block);
                 System.out.println("\nCaminho da chave privada invalido");
+                block = db.getFailAttemptsCount(this.login);
+                if(block >= 3){
+                    db.blockUser(this.login);
+                    firstStep();
+                }   
                 continue;
            }
                     
             if(!isValidated){
                 //FAZER LOG DA ASSINATURA DIGITAL INVALIDA
-                //db.increaseFailAttemptsCount(this.login, block);
+                db.increaseFailAttemptsCount(this.login, block);
                 System.out.println("\nChave privada invalida, tente novamente");
+                block = db.getFailAttemptsCount(this.login);
+                if(block >= 3){
+                    db.blockUser(this.login);
+                    firstStep();
+                }   
             } 
-            block = db.getFailAttemptsCount(this.login);   
+            
         }
         //FAZER LOG CHAVE PRIVADA VALIDADA
         System.out.println("\nChave validada");
         return;
+    }
+
+    public void header(){
+        //System.out.println("\nLogin: " + login);
+        try {
+            System.out.println(db.getUserGroup("ca@grad.inf.puc-rio.br"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
     //END INTERFACE METHODS ---------------
 
@@ -236,7 +259,7 @@ class DigitalVault {
 
     //C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/admin-pkcs8-des.key
     public static void main (String[] args){
-        String adminCertPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/admin-x509.crt";
+        String adminCertPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/user01-x509.crt";
         String userCertPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/user01-x509.crt";
         String userPrivateKeyPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/user01-pkcs8-des.key";
         String indexEnv = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.env";
@@ -248,10 +271,9 @@ class DigitalVault {
         try {
             db.getConn();
             dv = new DigitalVault();
-            dv.firstStep();
-            
-            
-            
+            //dv.firstStep();
+            dv.header();
+                        
             dv.scanner.close();
             db.closeConnection();            
         } catch (Exception e1) {
@@ -268,18 +290,17 @@ class DigitalVault {
 
     //     try {
     //         DigitalVault dv = new DigitalVault();
+    //         db.getConn();
     //         dv.setCertificate(adminCertPath);
-    //         dv.setDatabase("test.db");
-    //         DatabaseManager db = new DatabaseManager(dv.pathToDB);
     //         //db.createNewTables();
     //         CypherManager cm = new CypherManager();  
     //         String salt = dv.saltGenerator();
-    //         String password = dv.generatePassword("FADAHADEBA", salt);
+    //         String password = dv.generatePassword("BA", salt);
 
     //         Key privkey = cm.getPrivateKey(userPrivateKeyPath, "user01".getBytes());
     //         String b64Cert = Base64.getEncoder().encodeToString(dv.cert.getEncoded());
             
-    //          db.removeUser("teste123@gmail.com");
+    //          db.removeUser("ca@grad.inf.puc-rio.br");
     //          db.insertNewUser("ca@grad.inf.puc-rio.br", "AC INF1416", dv.generatePEMCert(b64Cert), "SHA-1", salt, password, "0", "0", "0", "0");
             
     //     //    // ByteArrayInputStream certBytes = new ByteArrayInputStream(decoded);

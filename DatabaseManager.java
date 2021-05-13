@@ -3,6 +3,7 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.sql.*;
 import java.util.Base64;
+import java.util.Date;
 
 
 
@@ -89,13 +90,51 @@ public class DatabaseManager {
     //TO DO
     public boolean checkIfUserBlocked(String login) throws Exception{
         c.setAutoCommit(false);
+        Date aux = new Date();
+        java.sql.Date now = new java.sql.Date(aux.getTime());
+        java.sql.Date lastblocked = null;
+        long difference = 0;
 
         String sql = "SELECT * FROM USUARIOS WHERE LOGIN=?";
         PreparedStatement stmt = c.prepareStatement(sql);
         stmt.setString(1, login);
         ResultSet rs = stmt.executeQuery();
 
-        return false;
+        while(rs.next()){
+            lastblocked = rs.getDate("LASTBLOCKED");
+        }
+
+        System.out.println(lastblocked);
+        if(lastblocked != null){//Nunca foi bloqueado
+            difference = now.getTime() - lastblocked.getTime();
+            
+            if(difference <= 120000){//miliseconds
+                return true; //Continua bloqueado
+            }
+        }
+               
+        return false; //Nao estah bloqueado
+    }
+
+    public void blockUser(String login) throws Exception{
+        //System.out.println("Connection succesful");
+        Date aux = new Date();
+        java.sql.Date now = new java.sql.Date(aux.getTime());
+
+        c.setAutoCommit(false);
+
+        String sql = "UPDATE USUARIOS set BLOCKCOUNT = 0, LASTBLOCKED = ? WHERE LOGIN = ?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setDate(1, now);
+        stmt.setString(2, login);
+        
+        //Statement stmt = c.createStatement();
+        // String sql = "UPDATE USUARIOS set BLOCKCOUNT = " + Integer.toString(block) + " WHERE LOGIN = "  +  "'" + login + "';";
+        //BLOQUEAR USUARIO AQUI
+        stmt.executeUpdate();
+        c.commit();
+        
+        stmt.close();
     }
 
     public void removeUser(String login) throws Exception{          

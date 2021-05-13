@@ -41,21 +41,25 @@ class DigitalVault {
 
     public void firstStep() throws Exception{
         //FAZER LOG QUE ENTROU FASE 1
-        boolean isValidEmail = false;
+        boolean isValidated = false;
         String login = "";
-
-        while(!isValidEmail){
-            System.out.println("Digite seu login: ");
-            login = this.scanner.nextLine();
+        
+        while(!isValidated){
+            System.out.println("\nDigite seu login: ");
+            login = this.scanner.next();
             
             
-            isValidEmail = db.checkIfUserExists(login);
+            isValidated = db.checkIfUserExists(login);
 
-            if(!isValidEmail){
+            if(!isValidated){
                 //FAZER LOG QUE DEU ERRADO
-                //IMPLEMENTAR METODO "checkIfUserBlocked"
                 System.out.println("\nUsuario " + login + " nao existe.");
-            }            
+            }
+            
+            if(db.checkIfUserBlocked(this.login)){
+                System.out.println("\nUsuario '" + this.login + "' bloqueado");
+                isValidated = false; 
+            }
         };
 
         //FAZER LOG QUE DEU CERTO
@@ -63,6 +67,7 @@ class DigitalVault {
         this.cert = db.getDigitalCert(login);
         this.hash = db.getPasswordHex(login);
         this.salt = db.getPasswordSalt(login);
+        this.secondStep();
         //FAZER LOG QUE SAIU DA FASE 1
     }
 
@@ -70,10 +75,13 @@ class DigitalVault {
         Fonemas f = new Fonemas(); 
         CypherManager cm =  new CypherManager();
         int block = db.getFailAttemptsCount(this.login);
-        while(block < 3){
+        String passwordHex = db.getPasswordHex(this.login);
+        String hashAlgorithm = db.getPasswordHashAlgorithm(this.login);
+
+        while(!db.checkIfUserBlocked(this.login)){
             System.out.println("\nEntre a opcao que contem o fonema correto:");
             for(int j = 0; j < 7; j++){
-                System.out.println("Aperte 7 para Clear e 8 para Ok");
+                System.out.println("\nAperte [7] para 'Clear' e [8] para 'Ok'");
                 Vector<String> comb = f.generateCodes(f.generateFonemas());
                 for(int i = 0; i<comb.size(); i++){
                     System.out.println(Integer.toString(i + 1) + " -> " + comb.get(i));
@@ -93,30 +101,35 @@ class DigitalVault {
                 }
                 else{
                     j-=1;
-                    System.out.println("Nao eh um botao valido");
+                    System.out.println("\nNao eh um botao valido");
                 }            
             }
 
             Vector<String> passwordCombinations = f.combinations();
             for(String password : passwordCombinations){
                 password = password.replace("-", "") + this.salt;
-                MessageDigest messageDigest = MessageDigest.getInstance(db.getPasswordHashAlgorithm(this.login));
+                MessageDigest messageDigest = MessageDigest.getInstance(hashAlgorithm);
                 messageDigest.update(password.getBytes("UTF8"));
                 byte[] digest = messageDigest.digest();
 
-                if(cm.byteToHex(digest).equals(db.getPasswordHex(this.login))){
+                if(cm.byteToHex(digest).equals(passwordHex)){
                     //VALIDADO CORRETAMENTE
                     System.out.println("AUTENTICADO STEP 2");
+                    System.exit(1);
                 }
             }
 
             //SENHA INVALIDA
-            System.out.println("Senha invalida.");
+            System.out.println("\nSenha invalida.");
             f.reset();
             db.increaseFailAttemptsCount(this.login, block);
             block =  db.getFailAttemptsCount(this.login);
+            System.out.println(block);
+            if(block >= 3){
+                db.blockUser(this.login);
+            }
         }
-        System.out.println("Login bloqueado por numero de tentativas invalidas. Aguarde dois minutos");
+        System.out.println("\nLogin " + this.login + " por numero de tentativas invalidas. Aguarde dois minutos");
         firstStep();
     }
     //END INTERFACE METHODS ---------------
@@ -171,7 +184,7 @@ class DigitalVault {
             db.getConn();
             dv = new DigitalVault();
             dv.firstStep();
-            dv.secondStep();
+            
             
             
             dv.scanner.close();

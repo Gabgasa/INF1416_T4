@@ -1,5 +1,3 @@
-package ternary_tree;
-
 public class Node {
 	private String fone;
 	

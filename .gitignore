@@ -1,3 +1,7 @@
 CypherManager.class
 DatabaseManager.class
 DigitalVault.class
+DigitalVaultInterface.class
+Fonemas.class
+Node.class
+Tree.class

@@ -54,11 +54,7 @@ public class CypherManager {
         KeyGenerator keyGen = KeyGenerator.getInstance("DES");
         keyGen.init(56, sc);
         symmetricalKey = keyGen.generateKey();
-            
-       
-           
-        
-        
+
         return symmetricalKey;
 
     }
@@ -94,8 +90,6 @@ public class CypherManager {
         KeyFactory kf = KeyFactory.getInstance("RSA");
         privateKey = kf.generatePrivate(keyspec);
                                 
-        
-
         return privateKey;
     }
 
@@ -108,6 +102,7 @@ public class CypherManager {
 
         return res;
     }
+
 
     public Boolean validateFile(byte[] file, byte[] signature, Key key) throws Exception{
                 //

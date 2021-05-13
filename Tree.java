@@ -1,5 +1,3 @@
-package ternary_tree;
-
 import java.util.Vector;
 import java.lang.Math;
 

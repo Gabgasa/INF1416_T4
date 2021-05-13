@@ -8,25 +8,41 @@ import java.util.Base64;
 
 
 public class DatabaseManager {
-    private String PathToDB;
+    private static Connection c = null;
 
-    DatabaseManager (String pathDB) {
-        PathToDB = pathDB;
+    DatabaseManager () {
+    }
+
+    public Connection getConn() throws Exception{
+        if(c == null){
+            Class.forName("org.sqlite.JDBC");
+            c = DriverManager.getConnection("jdbc:sqlite:test.db");
+        }
+
+        return c;
+    }
+    
+    public void closeConnection() throws Exception{
+        c.close();
     }
 
     public void createNewTables() throws Exception{
-        String url = "jdbc:sqlite:" + PathToDB;
-        
-        Connection conn = DriverManager.getConnection(url);
         // System.out.println("Connection succesful");
-        Statement stmt = conn.createStatement();
+        
+        Statement stmt = c.createStatement();
         String sql =    "CREATE TABLE IF NOT EXISTS USUARIOS " +
                         "(LOGIN TEXT PRIMARY KEY     NOT NULL," +
                         " NAME           TEXT    NOT NULL, " + 
                         " CERT           TEXT     NOT NULL, " + 
                         " ALGORITHM      TEXT, " +
                         " SALT      TEXT NOT NULL," +                     
-                        " PASSWORD       TEXT   NOT NULL)";
+                        " PASSWORD       TEXT   NOT NULL," +
+                        " GID       TEXT   NOT NULL," +
+                        " ACCESSCOUNT INT NOT NULL," +
+                        " SEARCHCOUNT INT NOT NULL," +
+                        " BLOCKCOUNT INT NOT NULL," +
+                        " LASTBLOCKED DATETIME, " + 
+                        " FOREIGN KEY (GID) REFERENCES GRUPOS(GID))";
 
         stmt.executeUpdate(sql);
 
@@ -48,111 +64,155 @@ public class DatabaseManager {
                 "FOREIGN KEY (USER) REFERENCES Usuarios(LOGIN))";
         stmt.executeUpdate(sql);
         stmt.close();
-        conn.close();
     }
 
-    public boolean findIfUserExists(String login) throws Exception{
-        String url = "jdbc:sqlite:" + PathToDB;        
-        Connection conn = DriverManager.getConnection(url);
-        System.out.println("Connection succesful");
+    public boolean checkIfUserExists(String login) throws Exception{       
+        //System.out.println("Connection succesful");
 
-        conn.setAutoCommit(false);
+        c.setAutoCommit(false);
 
-        Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery("SELECT * FROM USUARIOS WHERE LOGIN=" + "'" + login + "';");
+        String sql = "SELECT * FROM USUARIOS WHERE LOGIN=?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setString(1, login);
+        ResultSet rs = stmt.executeQuery();
+        
         if(rs.next()){
             rs.close();
             stmt.close();
-            conn.close();
             return true;
         }
         
         rs.close();
         stmt.close();
-        conn.close();
+        return false;
+    }
+    //TO DO
+    public boolean checkIfUserBlocked(String login) throws Exception{
+        c.setAutoCommit(false);
+
+        String sql = "SELECT * FROM USUARIOS WHERE LOGIN=?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setString(1, login);
+        ResultSet rs = stmt.executeQuery();
+
         return false;
     }
 
-    public void insertField() throws Exception{
+    public void removeUser(String login) throws Exception{          
+        // System.out.println("Connection succesful");
+
+        String sql = "DELETE FROM USUARIOS WHERE LOGIN=?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setString(1, login);
         
-        String url = "jdbc:sqlite:" + PathToDB;        
-        Connection conn = DriverManager.getConnection(url);
-        // System.out.println("Connection succesful");
-        Statement stmt = conn.createStatement();
-        String sql = "INSERT INTO USUARIOS (LOGIN,NAME,CERT,ALGORITHM,SALT,PASSWORD)" +
-        "VALUES ('gabgasa@hotmail.com', 'Gabriel Aquino', 'aaassdada', 'HASH_SHA1', 'abcde', 'abc123');";   
+        c.commit();
         stmt.executeUpdate(sql);
-        stmt.close();
-        conn.close();
-
-    }
-
-    public void removeUser(String login) throws Exception{     
-        String url = "jdbc:sqlite:" + PathToDB;       
-        Connection conn = DriverManager.getConnection(url);
-        // System.out.println("Connection succesful");
-        Statement stmt = conn.createStatement();
-        String sql = "DELETE FROM USUARIOS WHERE LOGIN='" + login +"';"; 
-
-        stmt.executeUpdate(sql);
-        stmt.close();
-        conn.close();
-    
+        stmt.close();    
     }
     
 
-    public void insertNewUser(String login, String name, String cert, String algorithm, String salt, String hexPassword) throws Exception{
-        
-        String url = "jdbc:sqlite:" + PathToDB;        
-        Connection conn = DriverManager.getConnection(url);
+    public void insertNewUser(String login, String name, String cert, String algorithm, String salt, String hexPassword, String gid, String accesscount, String searchcount, String blockcount) throws Exception{
+             
         // System.out.println("Connection succesful");
-        Statement stmt = conn.createStatement();
-        String sql = "INSERT INTO USUARIOS (LOGIN,NAME,CERT,ALGORITHM,SALT,PASSWORD)" +
-                    "VALUES ('" + login + "', '" + name + "', '" + cert + "', '" + algorithm + "', '" + salt + "', '" + hexPassword + "');";
-
+        String sql = "INSERT INTO USUARIOS (LOGIN,NAME,CERT,ALGORITHM,SALT,PASSWORD, GID, ACCESSCOUNT, SEARCHCOUNT, BLOCKCOUNT)" +
+                        "VALUES (?,?,?,?,?,?,?,?,?,?)";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setString(1, login);
+        stmt.setString(2, name);
+        stmt.setString(3, cert);
+        stmt.setString(4, algorithm);
+        stmt.setString(5, salt);
+        stmt.setString(6, hexPassword);
+        stmt.setInt(7, Integer.parseInt(gid));
+        stmt.setInt(8, Integer.parseInt(accesscount));
+        stmt.setInt(9, Integer.parseInt(searchcount));
+        stmt.setInt(10, Integer.parseInt(blockcount));
+        // String sql = "INSERT INTO USUARIOS (LOGIN,NAME,CERT,ALGORITHM,SALT,PASSWORD, GID, ACCESSCOUNT, SEARCHCOUNT, BLOCKCOUNT)" +
+        //             "VALUES ('" + login + "', '" + name + "', '" + cert + "', '" + algorithm + "', '" + salt + "', '" + hexPassword +  "', '" + gid  +
+        //             "', '" + accesscount + "', '" + searchcount + "', '" + blockcount + "');";
+        c.commit();
         stmt.executeUpdate(sql);
         stmt.close();
-        conn.close();
+    }
 
+    public int getFailAttemptsCount(String login) throws Exception{
+        int blockcount = 0;
+        //System.out.println("Connection succesful");
+
+        c.setAutoCommit(false);
+
+        String sql = "SELECT * FROM USUARIOS WHERE LOGIN=?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setString(1, login);
+        
+        ResultSet rs = stmt.executeQuery();
+        while(rs.next()){
+            blockcount = rs.getInt("BLOCKCOUNT");
+        }
+
+        
+        rs.close();
+        stmt.close();
+
+        return blockcount;
+    }
+
+    public void increaseFailAttemptsCount(String login, int block) throws Exception{
+        //System.out.println("Connection succesful");
+
+        c.setAutoCommit(false);
+        block += 1;
+
+        String sql = "UPDATE USUARIOS set BLOCKCOUNT = ? WHERE LOGIN = ?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setInt(1, block);
+        stmt.setString(2, login);
+        
+        //Statement stmt = c.createStatement();
+        // String sql = "UPDATE USUARIOS set BLOCKCOUNT = " + Integer.toString(block) + " WHERE LOGIN = "  +  "'" + login + "';";
+        //BLOQUEAR USUARIO AQUI
+        stmt.executeUpdate();
+        c.commit();
+        
+        stmt.close();
     }
 
     public String getUserName(String login) throws Exception{
         String name = "";
-        String url = "jdbc:sqlite:" + PathToDB;        
-        Connection conn = DriverManager.getConnection(url);
+
         //System.out.println("Connection succesful");
 
-        conn.setAutoCommit(false);
+        c.setAutoCommit(false);
 
-        Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery("SELECT * FROM USUARIOS WHERE LOGIN=" + "'" + login + "';");
+        String sql = "SELECT * FROM USUARIOS WHERE LOGIN=?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setString(1, login);
 
+        ResultSet rs = stmt.executeQuery();
         while(rs.next()){
             name = rs.getString("NAME");
         }
         rs.close();
         stmt.close();
-        conn.close();
         return name;
     }
 
     public X509Certificate getDigitalCert(String login) throws Exception{
         String cert = "";
-        String url = "jdbc:sqlite:" + PathToDB;        
-        Connection conn = DriverManager.getConnection(url);
         //System.out.println("Connection succesful");
 
-        conn.setAutoCommit(false);
+        c.setAutoCommit(false);
 
-        Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery("SELECT * FROM USUARIOS WHERE LOGIN=" + "'" + login + "';");
+        String sql = "SELECT * FROM USUARIOS WHERE LOGIN=?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setString(1, login);
 
+        ResultSet rs = stmt.executeQuery();
         while(rs.next()){
             cert = rs.getString("CERT");
         }
         rs.close();
         stmt.close();
-        conn.close();
 
         String newC = cert.replace("-----BEGIN CERTIFICATE-----", "")
                         .replaceAll("\n", "")
@@ -168,64 +228,58 @@ public class DatabaseManager {
 
     public String getPasswordSalt(String login) throws Exception{
         String salt = "";
-
-        String url = "jdbc:sqlite:" + PathToDB;        
-        Connection conn = DriverManager.getConnection(url);
         //System.out.println("Connection succesful");
 
-        conn.setAutoCommit(false);
+        c.setAutoCommit(false);
 
-        Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery("SELECT * FROM USUARIOS WHERE LOGIN=" + "'" + login + "';");
+        String sql = "SELECT * FROM USUARIOS WHERE LOGIN=?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setString(1, login);
 
+        ResultSet rs = stmt.executeQuery();
         while(rs.next()){
             salt = rs.getString("SALT");
         }
         rs.close();
         stmt.close();
-        conn.close();
         return salt;
     }
 
     public String getPasswordHex(String login) throws Exception{
         String password = "";
-
-        String url = "jdbc:sqlite:" + PathToDB;        
-        Connection conn = DriverManager.getConnection(url);
         //System.out.println("Connection succesful");
 
-        conn.setAutoCommit(false);
+        c.setAutoCommit(false);
 
-        Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery("SELECT * FROM USUARIOS WHERE LOGIN=" + "'" + login + "';");
+        String sql = "SELECT * FROM USUARIOS WHERE LOGIN=?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setString(1, login);
 
+        ResultSet rs = stmt.executeQuery();
         while(rs.next()){
             password = rs.getString("PASSWORD");
         }
         rs.close();
         stmt.close();
-        conn.close();
         return password;
     }
 
     public String getPasswordHashAlgorithm(String login) throws Exception{
         String algorithm = "";
-
-        String url = "jdbc:sqlite:" + PathToDB;        
-        Connection conn = DriverManager.getConnection(url);
         //System.out.println("Connection succesful");
 
-        conn.setAutoCommit(false);
+        c.setAutoCommit(false);
 
-        Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery("SELECT * FROM USUARIOS WHERE LOGIN=" + "'" + login + "';");
+        String sql = "SELECT * FROM USUARIOS WHERE LOGIN=?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setString(1, login);
 
+        ResultSet rs = stmt.executeQuery();
         while(rs.next()){
             algorithm = rs.getString("ALGORITHM");
         }
         rs.close();
         stmt.close();
-        conn.close();
         return algorithm;
     }
 

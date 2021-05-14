@@ -157,8 +157,34 @@ public class CypherManager {
         }
         return null;
     }
+    public String getNameFromCertificate(X509Certificate c) throws Exception{
+        String name;
+        name = c.getSubjectX500Principal().toString();
+        name = name.split(",")[1];
+        name = name.split("=")[1];
+        return name;
+    }
 
-    //test
+    public String getLoginFromCertificate(X509Certificate c) throws Exception{
+        String loginName;
+        loginName = c.getSubjectX500Principal().toString();
+        loginName = loginName.split(",")[0];
+        loginName = loginName.split("=")[1];
+        return loginName;
+    }
+
+    public void showCertificateInformation(X509Certificate c) throws Exception{
+        System.out.println("\nCertificado Digital");
+        System.out.println("\nVersao: " + Integer.toString(c.getVersion()));
+        System.out.println("Serie: " + c.getSerialNumber().toString(16));
+        System.out.println("Validade: " + c.getNotAfter());
+        System.out.println("Tipo de assinatura: " + c.getSigAlgName());
+        System.out.println("Emissor: " + c.getIssuerDN().toString().split(",")[1]);
+        System.out.println("Sujeito: " + getNameFromCertificate(c));
+        System.out.println("E-mail: " + getLoginFromCertificate(c));
+    }
+
+    // //test
     // public static void main (String[] args){
         
     //     String userCertPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/user01-x509.crt";
@@ -189,6 +215,7 @@ public class CypherManager {
     //         System.out.println(new String(index, StandardCharsets.UTF_8));
 
     //         cp.validateFile(index, sig, cert.getPublicKey());
+    //         cp.showCertificateInformation(cert);
             
     //     } catch (CertificateException | IOException e) {
     //         e.printStackTrace();

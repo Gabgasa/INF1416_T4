@@ -17,7 +17,7 @@ public class DatabaseManager {
     public Connection getConn() throws Exception{
         if(c == null){
             Class.forName("org.sqlite.JDBC");
-            c = DriverManager.getConnection("jdbc:sqlite:test.db");
+            c = DriverManager.getConnection("jdbc:sqlite:digitalvault.db");
         }
 
         return c;
@@ -132,8 +132,7 @@ public class DatabaseManager {
             if(difference <= 120000){//miliseconds
                 return true; //Continua bloqueado
             }
-        }
-               
+        }   
         return false; //Nao estah bloqueado
     }
 
@@ -155,6 +154,21 @@ public class DatabaseManager {
         c.commit();
         
         stmt.close();
+    }
+
+    public int getTotalUsers() throws Exception{
+        c.setAutoCommit(false);
+        int count = 0;
+
+        String sql = "SELECT * FROM USUARIOS;";
+        Statement stmt = c.createStatement();
+        ResultSet rs = stmt.executeQuery(sql);
+        
+        while(rs.next()){
+            count++;
+        }
+        
+        return count;
     }
 
     public void removeUser(String login) throws Exception{          

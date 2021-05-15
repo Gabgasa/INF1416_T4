@@ -1,23 +1,16 @@
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.*;
-import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 
-import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyGenerator;
-import javax.crypto.NoSuchPaddingException;
-
 
 public class CypherManager {
 
@@ -113,10 +106,8 @@ public class CypherManager {
             sig.update(file);
             try {
                 if (sig.verify(signature)) {
-                    System.out.println( "Signature verified" );
                     return true;
                 } else {
-                    System.out.println( "Signature failed" ); 
                     return false;
                 }
             } catch (SignatureException se) {
@@ -138,7 +129,8 @@ public class CypherManager {
         return buf.toString();
     }
     
-    public String getDecryptedFile(String pathToFileEnv, String pathToFileEnc, Key privKey, String fileSigPath, Key pubKey) throws Exception{
+    
+    public byte[] getDecryptedFile(String pathToFileEnv, String pathToFileEnc, Key privKey) throws Exception{
         String file = "";
         Key symmetricalKey = this.getSymmetricKey(pathToFileEnv, privKey);
         
@@ -147,15 +139,10 @@ public class CypherManager {
         byte[] fileBytes = this.decryptFile(encryptedFile, symmetricalKey);
 
         //System.out.println(new String(index, StandardCharsets.UTF_8));
-        File fileSig = new File(fileSigPath);
-        byte[] sig = Files.readAllBytes(fileSig.toPath());
 
         file = new String(fileBytes, StandardCharsets.UTF_8);
 
-        if(this.validateFile(fileBytes, sig, pubKey)){
-            return file;
-        }
-        return null;
+        return fileBytes;
     }
     public String getNameFromCertificate(X509Certificate c) throws Exception{
         String name;
@@ -184,48 +171,6 @@ public class CypherManager {
         System.out.println("E-mail: " + getLoginFromCertificate(c));
     }
 
-    // //test
-    // public static void main (String[] args){
-        
-    //     String userCertPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/user01-x509.crt";
-    //     String userPrivateKeyPath = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Keys/user01-pkcs8-des.key";
-    //     String indexEnv = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.env";
-    //     String indexEnc = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.enc";
-    //     String indexAsd = "C:/Users/gab_g/Desktop/SegurancaT4/Pacote-T4/Files/index.asd";
-
-    //     CypherManager cp = new CypherManager();
-
-    //     try {
-    //         X509Certificate cert = cp.getCertificate(userCertPath);
-    //         //System.out.println(publickey);
-
-    //         Key privateKey = cp.getPrivateKey(userPrivateKeyPath, "user01".getBytes("UTF8"));
-    //         //System.out.println(privateKey);
-
-    //         Key symmetricalKey = cp.getSymmetricKey(indexEnv, privateKey);
-    //         //System.out.println(symmetricalKey);
-    //         File ind = new File(indexEnc);
-    //         byte[] indFile = Files.readAllBytes(ind.toPath());
-    //         byte[] index = cp.decryptFile(indFile, symmetricalKey);
-
-    //         //System.out.println(new String(index, StandardCharsets.UTF_8));
-    //         File indexSig = new File(indexAsd);
-    //         byte[] sig = Files.readAllBytes(indexSig.toPath());
-
-    //         System.out.println(new String(index, StandardCharsets.UTF_8));
-
-    //         cp.validateFile(index, sig, cert.getPublicKey());
-    //         cp.showCertificateInformation(cert);
-            
-    //     } catch (CertificateException | IOException e) {
-    //         e.printStackTrace();
-    //     } catch (NoSuchAlgorithmException e) {
-    //         e.printStackTrace();
-    //     } catch (NoSuchPaddingException e) {
-    //         e.printStackTrace();
-    //     } catch (Exception e) {
-    //         e.printStackTrace();
-    //     }
-    // }
+  
 }
 

@@ -60,9 +60,11 @@ public class DatabaseManager {
         stmt.executeUpdate(sql);
         
         sql =   "CREATE TABLE IF NOT EXISTS REGISTROS " +
-                "(ID CHAR(100) PRIMARY KEY     NOT NULL," +
-                "USER           TEXT  ," +
-                "FOREIGN KEY (USER) REFERENCES Usuarios(LOGIN))";
+                "(ID INT NOT NULL ,"+ 
+                "LOGIN           TEXT  ," +
+                "ARQNAME           TEXT  ," +
+                "TIMESTAMP DATETIME NOT NULL," + 
+                "FOREIGN KEY (ID) REFERENCES MENSAGENS(ID))";
         stmt.executeUpdate(sql);
         stmt.close();
     }
@@ -147,9 +149,6 @@ public class DatabaseManager {
         stmt.setDate(1, now);
         stmt.setString(2, login);
         
-        //Statement stmt = c.createStatement();
-        // String sql = "UPDATE USUARIOS set BLOCKCOUNT = " + Integer.toString(block) + " WHERE LOGIN = "  +  "'" + login + "';";
-        //BLOQUEAR USUARIO AQUI
         stmt.executeUpdate();
         c.commit();
         
@@ -229,6 +228,116 @@ public class DatabaseManager {
         return blockcount;
     }
 
+    public int getTotalSearchCount(String login) throws Exception{
+        int searchCount = 0;
+
+        c.setAutoCommit(false);
+
+        String sql = "SELECT * FROM USUARIOS WHERE LOGIN=?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setString(1, login);
+        
+        ResultSet rs = stmt.executeQuery();
+        while(rs.next()){
+            searchCount = rs.getInt("SEARCHCOUNT");
+        }        
+        rs.close();
+        stmt.close();
+
+        return searchCount;
+    }
+    public int increaseTotalSearchCount(String login) throws Exception{
+        int searchCount = getTotalSearchCount(login);
+
+        c.setAutoCommit(false);
+        searchCount += 1;
+
+        String sql = "UPDATE USUARIOS set SEARCHCOUNT = ? WHERE LOGIN = ?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setInt(1, searchCount);
+        stmt.setString(2, login);
+        
+        stmt.executeUpdate();
+        c.commit();
+        
+        stmt.close();
+        return searchCount;
+    }
+
+    public void addLog(int gid, String login, String arq_name) throws Exception{
+        // System.out.println("Connection succesful");
+        Date aux = new Date();
+        java.sql.Date now = new java.sql.Date(aux.getTime());
+
+        c.setAutoCommit(false);
+        String sql = "INSERT INTO REGISTROS (ID, LOGIN, ARQNAME, TIMESTAMP)" +
+                        "VALUES (?,?,?,?)";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setInt(1, gid);
+        stmt.setString(2, login);
+        stmt.setString(3, arq_name);
+        stmt.setDate(4, now);
+        
+
+        stmt.executeUpdate();
+        c.commit();
+        stmt.close();
+    }
+    //OVERLOAD
+    public void addLog(int gid, String login) throws Exception{
+        // System.out.println("Connection succesful");
+        Date aux = new Date();
+        java.sql.Date now = new java.sql.Date(aux.getTime());
+
+        c.setAutoCommit(false);
+        String sql = "INSERT INTO REGISTROS (ID, LOGIN, TIMESTAMP)" +
+                        "VALUES (?,?,?)";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setInt(1, gid);
+        stmt.setString(2, login);
+        stmt.setDate(3, now);
+        
+
+        stmt.executeUpdate();
+        c.commit();
+        stmt.close();
+    }
+    //OVERLOAD
+    public void addLog(int gid) throws Exception{
+        // System.out.println("Connection succesful");
+        Date aux = new Date();
+        java.sql.Date now = new java.sql.Date(aux.getTime());
+
+        c.setAutoCommit(false);
+        String sql = "INSERT INTO REGISTROS (ID,TIMESTAMP)" +
+                        "VALUES (?,?)";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setInt(1, gid);
+        stmt.setDate(2, now);
+        
+
+        stmt.executeUpdate();
+        c.commit();
+        stmt.close();
+    }
+
+    // public String[] getLogs() throws Exception{
+    //     String[] logs;
+
+    //     c.setAutoCommit(false);
+
+    //     String sql = "SELECT * FROM REGISTROS ORDER BY datetime(TIMESTAMP) ASC ";
+    //     Statement stmt = c.prepareStatement(sql);
+
+    //     ResultSet rs = stmt.executeQuery(sql);
+    //     while(rs.next()){
+    //         accessCount = rs.getInt("ACCESSCOUNT");
+    //     }
+    //     rs.close();
+    //     stmt.close();
+    //     return Integer.toString(accessCount);
+    // }
+
     public void increaseFailAttemptsCount(String login, int block) throws Exception{
         //System.out.println("Connection succesful");
 
@@ -244,6 +353,66 @@ public class DatabaseManager {
         stmt.executeUpdate();
         c.commit();
         
+        stmt.close();
+    }
+
+    public String getUserTotalAccess(String login) throws Exception{
+        int accessCount = 0;
+
+        //System.out.println("Connection succesful");
+
+        c.setAutoCommit(false);
+
+        String sql = "SELECT * FROM USUARIOS WHERE LOGIN=?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setString(1, login);
+
+        ResultSet rs = stmt.executeQuery();
+        while(rs.next()){
+            accessCount = rs.getInt("ACCESSCOUNT");
+        }
+        rs.close();
+        stmt.close();
+        return Integer.toString(accessCount);
+    }
+
+    public void addUserTotalAccess(String login) throws Exception{
+        //System.out.println("Connection succesful");
+        c.setAutoCommit(false);
+        int accessCount = Integer.parseInt(getUserTotalAccess(login));
+        String sql = "UPDATE USUARIOS SET ACCESSCOUNT=? WHERE LOGIN=?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setInt(1, accessCount + 1);
+        stmt.setString(2, login);
+        stmt.executeUpdate();
+
+        c.commit();
+        stmt.close();
+    }
+
+    public void changeUserPassword(String login, String salt, String hexPassword) throws Exception{
+        //System.out.println("Connection succesful");
+        String sql = "UPDATE USUARIOS SET PASSWORD=?, SALT=? WHERE LOGIN=?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setString(1, hexPassword);
+        stmt.setString(2, salt);
+        stmt.setString(3, login);
+        stmt.executeUpdate();
+
+        c.commit();
+        stmt.close();
+    }
+
+    public void changeUserCertificate(String login, String PEMCert) throws Exception{
+        //System.out.println("Connection succesful");
+        String sql = "UPDATE USUARIOS SET CERT=? WHERE LOGIN=?";
+        PreparedStatement stmt = c.prepareStatement(sql);
+        stmt.setString(1, PEMCert);
+        stmt.setString(2, login);
+
+        stmt.executeUpdate();
+
+        c.commit();
         stmt.close();
     }
 

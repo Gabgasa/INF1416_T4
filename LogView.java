@@ -36,10 +36,10 @@ public class LogView {
             else if(login != null){
                 mensagem = mensagem.replace("<login_name>", login);
             }
-            mensagem = mensagem + " - " + formatedDate + "\n";
+            mensagem = formatedDate + " - " +  mensagem + "\n";
             out.write(mensagem.getBytes("UTF-8"));
             
-            //System.out.println(mensagem + " - " + formatedDate);            
+            System.out.println(mensagem + " - " + formatedDate);            
         }
         out.close();
     }

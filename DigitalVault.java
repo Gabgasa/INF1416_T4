@@ -417,8 +417,10 @@ class DigitalVault {
 
                 try{
                     fonema = fonVector.get(Integer.parseInt(fonema)-1);
-                }catch (ArrayIndexOutOfBoundsException e){
+                }
+                catch(Exception e){
                     System.out.println("\nOpcao invalida, escolha um dos fonemas disponiveis");
+                    continue;
                 }
                 if(fonema.equals(prevFonema)){
                     isValidPassword = false;
@@ -453,12 +455,9 @@ class DigitalVault {
                 }
                 try{
                     fonema = fonVector.get(Integer.parseInt(fonema)-1);
-                }catch (ArrayIndexOutOfBoundsException e){
-                    System.out.println("\nOpcao invalida, escolha um dos fonemas disponiveis");
-                    continue;
                 }
                 catch (Exception e){
-                    System.out.println("\nOpcao nao eh um numero");
+                    System.out.println("\nOpcao invalida, escolha um dos fonemas disponiveis");
                     continue;
                 }
                 if(fonema.equals(prevFonema)){
@@ -624,8 +623,9 @@ class DigitalVault {
 
                 try{
                     fonema = fonVector.get(Integer.parseInt(fonema)-1);
-                }catch (ArrayIndexOutOfBoundsException e){
+                }catch (Exception e){
                     System.out.println("\nOpcao invalida, escolha um dos fonemas disponiveis");
+                    continue;
                 }
                 if(fonema.equals(prevFonema)){
                     isValidPassword = false;
@@ -661,6 +661,7 @@ class DigitalVault {
                     fonema = fonVector.get(Integer.parseInt(fonema)-1);
                 }catch (ArrayIndexOutOfBoundsException e){
                     System.out.println("\nOpcao invalida, escolha um dos fonemas disponiveis");
+                    continue;
                 }
                 if(fonema.equals(prevFonema)){
                     isValidPassword = false;

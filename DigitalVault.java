@@ -79,6 +79,7 @@ class DigitalVault {
         int block = db.getFailAttemptsCount(this.login);
         String passwordHex = db.getPasswordHex(this.login);
         String hashAlgorithm = db.getPasswordHashAlgorithm(this.login);
+        int keypressnumber = 0;
 
         db.addLog(3001, this.login); //Etapa 2 iniciada
         while(!db.checkIfUserBlocked(this.login)){
@@ -90,23 +91,32 @@ class DigitalVault {
                     System.out.println(Integer.toString(i + 1) + " -> " + comb.get(i));
                 }  
                 String keypress = this.scanner.next();
-                //Reset
+                if(keypress.equals("-")){
+                    break;
+                }
+                
+                //Resetd
                 if(keypress.equals("=")){
                     j = -1;
                     f.reset();
                     System.out.println("\nTeclado foi limpo");
+                    continue;
                 }
-                //OK
-                else if(keypress.equals("-")){
-                    break;
+                try{
+                    keypressnumber = Integer.parseInt(keypress);
+                    if(keypressnumber > 0 && keypressnumber < 7){                    
+                        f.ADD(comb.get(Integer.parseInt(keypress) - 1));                      
+                    }
+                    else{
+                        j-=1;
+                        System.out.println("\nNao eh um botao valido");
+                    }
                 }
-                else if(Integer.parseInt(keypress) > 0 && Integer.parseInt(keypress) < 7){
-                    f.ADD(comb.get(Integer.parseInt(keypress) - 1));    
-                }
-                else{
-                    j-=1;
-                    System.out.println("\nNao eh um botao valido");
-                }
+                catch(Exception e){
+                    System.out.println("\nOpcao invalida");
+                    continue;
+                }                
+                
                 System.out.println("\nSenha:");
                 for(int k = 0; k <= j; k++){
                     System.out.print("## ");
@@ -137,6 +147,7 @@ class DigitalVault {
                 System.out.println("\nLogin " + this.login + " bloqueado por numero de tentativas invalidas. Aguarde dois minutos");
                 db.addLog(3006, this.login);
                 db.addLog(3007, this.login);
+                db.increaseFailAttemptsCount(this.login, -1); //Resetando o contador de erros
                 db.blockUser(this.login);
             }
             else if(block == 1){
@@ -185,7 +196,9 @@ class DigitalVault {
                 db.addLog(4005, this.login);
                 block = db.getFailAttemptsCount(this.login);
                 if(block >= 3){
+                    System.out.println("\nLogin " + this.login + " bloqueado por numero de tentativas invalidas. Aguarde dois minutos");
                     db.blockUser(this.login);
+                    db.increaseFailAttemptsCount(this.login, -1); //Resetando o contador de erros
                     db.addLog(4007, this.login);
                     firstStep();
                 }   
@@ -198,7 +211,9 @@ class DigitalVault {
                 db.addLog(4004, this.login);
                 block = db.getFailAttemptsCount(this.login);
                 if(block >= 3){
+                    System.out.println("\nLogin " + this.login + " bloqueado por numero de tentativas invalidas. Aguarde dois minutos");
                     db.blockUser(this.login);
+                    db.increaseFailAttemptsCount(this.login, -1); //Resetando o contador de erros
                     db.addLog(4007, this.login);
                     firstStep();
                 }   
@@ -212,7 +227,9 @@ class DigitalVault {
                 db.addLog(4006, this.login);
                 block = db.getFailAttemptsCount(this.login);
                 if(block >= 3){
+                    System.out.println("\nLogin " + this.login + " bloqueado por numero de tentativas invalidas. Aguarde dois minutos");
                     db.addLog(4007, this.login);
+                    db.increaseFailAttemptsCount(this.login, -1); //Resetando o contador de erros
                     db.blockUser(this.login);
                     firstStep();
                 }   
@@ -483,6 +500,7 @@ class DigitalVault {
                     db.addLog(6002, this.login);
                     String salt = saltGenerator();
                     int g = Integer.parseInt(grupo) - 1;
+                    
                     String b64Cert = Base64.getEncoder().encodeToString(c.getEncoded());
                     try{
                         db.insertNewUser(cm.getLoginFromCertificate(c),cm.getNameFromCertificate(c),generatePEMCert(b64Cert),"SHA-1", salt, generatePassword(password, salt), Integer.toString(g), "0", "0", "0");
@@ -651,24 +669,32 @@ class DigitalVault {
                     prevFonema = "-1";
                     break;
                 }
+                else if(fonema.equals("-") && !password.equals(passwordConfirmation)){
+                    passwordConfirmation = "";
+                    prevFonema = "-1";
+                    isValidPasswordConfirmation = false;
+                    System.out.println("\nConfirmacao invalida, digite novamente");
+                    continue;
+                }
                 else if(fonema.equals("=")){
                     isValidPasswordConfirmation = false;
                     passwordConfirmation = "";
                     prevFonema = "-1";
                     continue;
                 }
-                try{
-                    fonema = fonVector.get(Integer.parseInt(fonema)-1);
-                }catch (ArrayIndexOutOfBoundsException e){
-                    System.out.println("\nOpcao invalida, escolha um dos fonemas disponiveis");
-                    continue;
-                }
+        
                 if(fonema.equals(prevFonema)){
                     isValidPassword = false;
                     System.out.println("\nSenha nao pode ter fonemas repetidos.");
                     continue;
                 }
                 else{
+                    try{
+                        fonema = fonVector.get(Integer.parseInt(fonema)-1);
+                    }catch (Exception e){
+                        System.out.println("\nOpcao invalida, escolha um dos fonemas disponiveis");
+                        continue;
+                    }
                     prevFonema = fonema;
                     passwordConfirmation = passwordConfirmation + fonema;
 
@@ -781,7 +807,14 @@ class DigitalVault {
             int op = 0;
             while(!isValid){
                 String option = this.scanner.next();
-                op = Integer.parseInt(option);
+                try{
+                    op = Integer.parseInt(option);
+                }
+                catch(Exception e){
+                    System.out.println("Comando invalido");
+                    continue;
+                }
+                
                 if(op<=indexLines.length && op>= 0){
                     isValid = true;
                 }

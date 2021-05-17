@@ -41,7 +41,6 @@ class DigitalVault {
     public void firstStep() throws Exception{
         boolean isValidated = false;
         String loginName = "";
-        db.addLog(1001);
         db.addLog(2001);
         while(!isValidated){
             System.out.println("\nDigite seu login: ");
@@ -147,6 +146,7 @@ class DigitalVault {
                 System.out.println("\nLogin " + this.login + " bloqueado por numero de tentativas invalidas. Aguarde dois minutos");
                 db.addLog(3006, this.login);
                 db.addLog(3007, this.login);
+                db.addLog(3002, this.login);
                 db.increaseFailAttemptsCount(this.login, -1); //Resetando o contador de erros
                 db.blockUser(this.login);
             }
@@ -200,6 +200,7 @@ class DigitalVault {
                     db.blockUser(this.login);
                     db.increaseFailAttemptsCount(this.login, -1); //Resetando o contador de erros
                     db.addLog(4007, this.login);
+                    db.addLog(4002, this.login);
                     firstStep();
                 }   
                 continue;
@@ -215,6 +216,7 @@ class DigitalVault {
                     db.blockUser(this.login);
                     db.increaseFailAttemptsCount(this.login, -1); //Resetando o contador de erros
                     db.addLog(4007, this.login);
+                    db.addLog(4002, this.login);
                     firstStep();
                 }   
                 continue;
@@ -229,6 +231,7 @@ class DigitalVault {
                 if(block >= 3){
                     System.out.println("\nLogin " + this.login + " bloqueado por numero de tentativas invalidas. Aguarde dois minutos");
                     db.addLog(4007, this.login);
+                    db.addLog(4002, this.login);
                     db.increaseFailAttemptsCount(this.login, -1); //Resetando o contador de erros
                     db.blockUser(this.login);
                     firstStep();
@@ -744,6 +747,7 @@ class DigitalVault {
     public void checkUserSecretFolder() throws Exception{
         CypherManager cm = new CypherManager();
         boolean isValid = false;
+        boolean validatedFile = true;
         db.addLog(8001, this.login);
         while(true){
             header();
@@ -837,19 +841,22 @@ class DigitalVault {
                 String fileAsd = folderPath + "/" + fileCode + ".asd";
                 String fileEnc = folderPath + "/" + fileCode + ".enc";
                 
-                byte[] fileBytes = cm.getDecryptedFile(fileEnv, fileEnc, this.privateKey);
-
-                File fileSig = new File(fileAsd);
-                byte[] filesig = Files.readAllBytes(fileSig.toPath());
-
-                if(!cm.validateFile(fileBytes, filesig, this.publicKey)){
-                    db.addLog(8016, this.login, fileCode);
-                    System.out.println("O arquivo " + fileCode + " nao passou pelo teste de integridade.");    
-                }
-
+                
                 try{
-                    db.addLog(8013, this.login, fileCode); 
-                    db.addLog(8014, this.login, fileCode); 
+                    byte[] fileBytes = cm.getDecryptedFile(fileEnv, fileEnc, this.privateKey);
+
+                    File fileSig = new File(fileAsd);
+                    byte[] filesig = Files.readAllBytes(fileSig.toPath());
+
+                    db.addLog(8013, this.login, fileCode);
+                    if(!cm.validateFile(fileBytes, filesig, this.publicKey)){
+                        db.addLog(8016, this.login, fileCode);
+                        System.out.println("O arquivo " + fileCode + " nao passou pelo teste de integridade.");    
+                    }
+                    else{
+                        db.addLog(8014, this.login, fileCode);
+                    } 
+                     
                     System.out.println("\nArquivo decriptado e salvo com nome "+ secretName);
                     FileOutputStream out = new FileOutputStream(secretName);
                     out.write(fileBytes);
@@ -883,7 +890,8 @@ class DigitalVault {
                 case "1":
                     this.scanner.close();
                     db.addLog(9002, this.login);
-                    db.closeConnection(); 
+                    db.addLog(1002);
+                    db.closeConnection();                    
                     System.exit(0);
                     break;
                 case "2":
@@ -959,8 +967,8 @@ class DigitalVault {
         
         
         try {
-            
             db.getConn();
+            db.addLog(1001);
             db.createNewTables();
             dv = new DigitalVault();
             dv.firstStep();
